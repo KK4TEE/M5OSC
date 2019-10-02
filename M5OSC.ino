@@ -120,11 +120,6 @@ void setup() {
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setTextSize(1);
   M5.Lcd.setCursor(0, 0);
-  M5.Lcd.print("OSC Send:");
-  M5.Lcd.setCursor(45, 0);
-  M5.Lcd.println(udpAddress);
-  M5.Lcd.setCursor(0, 10);
-  M5.Lcd.println("  X       Y      Z");
 
   USE_SERIAL.begin(115200);
   USE_SERIAL.println();
@@ -143,11 +138,25 @@ void DecideGyroType(){
   // outer space, this should be a decent proxy.
 
   imuType = unknown;
+  accX, accY, accZ = 0;
+  USE_SERIAL.println();
+  USE_SERIAL.println("Resetting IMU");
   
   // Test for the SH200Q using a call to M5.IMU
+  //Wire1.end(); // Doesn't exist in the old version of Wire used
+  //pinMode(21, OUTPUT);
+  //pinMode(22, OUTPUT);
+  M5.IMU.sh200i_Reset();
+  M5.IMU.sh200i_ADCReset();
   M5.IMU.Init();
   M5.IMU.getAccelAdc(&accX,&accY,&accZ);
-  if ( !(accX == 0 && accY == 0 && accZ == 0)){
+  USE_SERIAL.print("X: "); USE_SERIAL.print(accX); 
+  USE_SERIAL.print(" Y: "); USE_SERIAL.print(accY); 
+  USE_SERIAL.print(" Z: "); USE_SERIAL.print(accZ); 
+  USE_SERIAL.println();
+  if ( !(abs(accX) == 0 && abs(accY) == 0 && abs(accZ) == 0) && accX != 16380){
+    // Because of the way the TwoWire library works, if the IMU is an MPU6886 the 
+    // byte that represents accX will return 16380, indicating it's not an SH200Q
     imuType = SH200Q;
     return;
   }
@@ -156,7 +165,7 @@ void DecideGyroType(){
   
   M5.MPU6886.Init();
   M5.MPU6886.getAccelAdc(&accX,&accY,&accZ);
-  if ( !(accX == 0 && accY == 0 && accZ == 0)){
+  if ( !(abs(accX) == 0 && abs(accY) == 0 && abs(accZ) == 0)){
     imuType = MPU6886;
     return;
   }
@@ -194,12 +203,12 @@ void HandleButtons(){
     while(digitalRead(M5_BUTTON_RST) == LOW);
     if (millis() > pressTime + 500){
       USE_SERIAL.println(" - LONG");
-      M5.Lcd.fillScreen(RED);
+      //M5.Lcd.fillScreen(RED);
       // Run action
-      DecideGyroType();
       M5.Lcd.fillScreen(BLUE);
       M5.Lcd.setCursor(0, 0, 1);
       M5.Lcd.printf("Reset IMU");
+      DecideGyroType();
       delay(400);
       M5.Lcd.fillScreen(BLACK);
     }
@@ -294,6 +303,9 @@ void HandleDisplay(){
   }
   M5.Lcd.setCursor(60, 0);
   M5.Lcd.print(udpAddress);
+  
+  M5.Lcd.setCursor(0, 10);
+  M5.Lcd.println("  X       Y      Z");
   M5.Lcd.setCursor(114, 10);
   if (imuType == SH200Q){
     M5.Lcd.print(" SH200Q");
@@ -304,6 +316,7 @@ void HandleDisplay(){
   else {
     M5.Lcd.print("UNKNOWN");
   }
+  
   M5.Lcd.setCursor(0, 20);
   M5.Lcd.printf("%.2f   %.2f   %.2f    ", ((float) gyroX) * gRes, ((float) gyroY) * gRes,((float) gyroZ) * gRes);
   M5.Lcd.setCursor(144, 20);
