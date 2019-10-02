@@ -6,7 +6,7 @@ Be sure to set your WiFi SSID, network password, IP Address, and port number in 
 
 The M5 Stick C has three different buttons built-in. This project detects short (< 0.5 seconds) and long (>= 0.5 seconds) presses of each button, and offers the following features:
   * Center button:
-    * Short:  No function
+    * Short:  Cycle screen brightness (off, low, high)
     * Long: No function
   * Left PWR button:
     * Short: No function

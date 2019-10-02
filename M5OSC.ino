@@ -66,6 +66,7 @@ bool isCharging;
 bool isDischarging;
 
 bool turboModeActive;
+int screenBrightness = 15; // Range 0->15; Start at max brightness
 
 ///////////// WiFi Functions //////////////////////////////////////////////////
 void connectToWiFi(const char * ssid, const char * pwd){
@@ -113,7 +114,8 @@ void setup() {
   digitalWrite(M5_LED, HIGH);
   pinMode(M5_BUTTON_HOME, INPUT);
   pinMode(M5_BUTTON_RST, INPUT);
-  
+
+  M5.Axp.ScreenBreath(screenBrightness);
   M5.Lcd.setRotation(3);
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setTextSize(1);
@@ -232,6 +234,13 @@ void HandleButtons(){
       USE_SERIAL.println(" - SHORT");
       M5.Lcd.fillScreen(RED);
       // Run action
+      // Set the display's brightness
+      screenBrightness += 7;
+      if (screenBrightness >= 16){
+        screenBrightness = 0;
+      }
+      M5.Axp.ScreenBreath(screenBrightness);
+      
       M5.Lcd.fillScreen(ORANGE);
       delay(400);
       M5.Lcd.fillScreen(BLACK);
