@@ -43,11 +43,19 @@ boolean connected = false;
 WiFiUDP udp;
 
 ////////// System Variables //////////////////////////////////////////////////
+enum imu_type {
+  unknown,
+  SH200Q,
+  MPU6886
+};
+
+imu_type imuType = unknown;
 int16_t accX, accY, accZ;
 int16_t gyroX, gyroY, gyroZ;
 double fXg, fYg, fZg;
 const float alpha = 0.5;
 double pitch, roll, Xg, Yg, Zg;
+float gRes, aRes;
 
 int analogSensorValue;
 int16_t temp = 0;
@@ -100,8 +108,7 @@ void WiFiEvent(WiFiEvent_t event){
 void setup() {
   
   M5.begin();
-  M5.IMU.Init();
-  
+  DecideGyroType();
   pinMode(M5_LED, OUTPUT);
   digitalWrite(M5_LED, HIGH);
   pinMode(M5_BUTTON_HOME, INPUT);
@@ -110,11 +117,12 @@ void setup() {
   M5.Lcd.setRotation(3);
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.setCursor(4, 0);
+  M5.Lcd.setCursor(0, 0);
   M5.Lcd.print("OSC Send:");
+  M5.Lcd.setCursor(45, 0);
   M5.Lcd.println(udpAddress);
   M5.Lcd.setCursor(0, 10);
-  M5.Lcd.println("  X       Y       Z");
+  M5.Lcd.println("  X       Y      Z");
 
   USE_SERIAL.begin(115200);
   USE_SERIAL.println();
@@ -122,6 +130,34 @@ void setup() {
   USE_SERIAL.println();
   
   connectToWiFi(networkName, networkPswd);
+}
+
+
+void DecideGyroType(){
+  // The M5StickC can have different types of IMUs
+  // We need to detect which is installed and use it
+  // For this we will test the accellerometer to see if
+  // it reports all zeros. Since we are (probably) not in
+  // outer space, this should be a decent proxy.
+
+  imuType = unknown;
+  
+  // Test for the SH200Q using a call to M5.IMU
+  M5.IMU.Init();
+  M5.IMU.getAccelAdc(&accX,&accY,&accZ);
+  if ( !(accX == 0 && accY == 0 && accZ == 0)){
+    imuType = SH200Q;
+    return;
+  }
+
+  // Test for the MPU6886 using a call to M5.MPU6886
+  
+  M5.MPU6886.Init();
+  M5.MPU6886.getAccelAdc(&accX,&accY,&accZ);
+  if ( !(accX == 0 && accY == 0 && accZ == 0)){
+    imuType = MPU6886;
+    return;
+  }
 }
 
 
@@ -158,7 +194,7 @@ void HandleButtons(){
       USE_SERIAL.println(" - LONG");
       M5.Lcd.fillScreen(RED);
       // Run action
-      M5.IMU.Init();
+      DecideGyroType();
       M5.Lcd.fillScreen(BLUE);
       M5.Lcd.setCursor(0, 0, 1);
       M5.Lcd.printf("Reset IMU");
@@ -205,9 +241,21 @@ void HandleButtons(){
 
 
 void HandleSensors(){
-  M5.IMU.getGyroAdc(&gyroX,&gyroY,&gyroZ);
-  M5.IMU.getAccelAdc(&accX,&accY,&accZ);
-  M5.IMU.getTempAdc(&temp);
+  if (imuType == SH200Q){
+    M5.IMU.getGyroAdc(&gyroX,&gyroY,&gyroZ);
+    M5.IMU.getAccelAdc(&accX,&accY,&accZ);
+    M5.IMU.getTempAdc(&temp);
+    aRes = M5.IMU.aRes;
+    gRes = M5.IMU.gRes;
+  }
+  else if (imuType == MPU6886){
+    M5.MPU6886.getGyroAdc(&gyroX,&gyroY,&gyroZ);
+    M5.MPU6886.getAccelAdc(&accX,&accY,&accZ);
+    M5.MPU6886.getTempAdc(&temp);
+    aRes = M5.MPU6886.aRes;
+    gRes = M5.MPU6886.gRes;
+  }
+  
   vbat = M5.Axp.GetVbatData() * 1.1 / 1000;
   isCharging    = M5.Axp.GetIchargeData() / 2;
   isDischarging = M5.Axp.GetIdischargeData() / 2;
@@ -225,21 +273,34 @@ void HandleSensors(){
 
 
 void HandleDisplay(){
-  M5.Lcd.setCursor(4, 0);
+
+  USE_SERIAL.print("Pitch: "); USE_SERIAL.print(pitch); USE_SERIAL.print(" Roll: "); USE_SERIAL.print(roll);
+  
+  M5.Lcd.setCursor(0, 0);
   if (connected){
-    M5.Lcd.print("OSC Send:");
+    M5.Lcd.print("OSC Send: ");
   }
   else {
-    M5.Lcd.print("WiFiError");
+    M5.Lcd.print("WiFiError ");
   }
-  M5.Lcd.println(udpAddress);
-  USE_SERIAL.print("Pitch: "); USE_SERIAL.print(pitch); USE_SERIAL.print(" Roll: "); USE_SERIAL.print(roll);
+  M5.Lcd.setCursor(60, 0);
+  M5.Lcd.print(udpAddress);
+  M5.Lcd.setCursor(114, 10);
+  if (imuType == SH200Q){
+    M5.Lcd.print(" SH200Q");
+  }
+  else if (imuType == MPU6886){
+    M5.Lcd.print("MPU6886");
+  }
+  else {
+    M5.Lcd.print("UNKNOWN");
+  }
   M5.Lcd.setCursor(0, 20);
-  M5.Lcd.printf("%.2f   %.2f   %.2f    ", ((float) gyroX) * M5.IMU.gRes, ((float) gyroY) * M5.IMU.gRes,((float) gyroZ) * M5.IMU.gRes);
-  M5.Lcd.setCursor(140, 20);
+  M5.Lcd.printf("%.2f   %.2f   %.2f    ", ((float) gyroX) * gRes, ((float) gyroY) * gRes,((float) gyroZ) * gRes);
+  M5.Lcd.setCursor(144, 20);
   M5.Lcd.print("mg");
   M5.Lcd.setCursor(0, 30);
-  M5.Lcd.printf("%.2f   %.2f   %.2f     ",((float) accX) * M5.IMU.aRes,((float) accY) * M5.IMU.aRes, ((float) accZ) * M5.IMU.aRes);
+  M5.Lcd.printf("%.2f   %.2f   %.2f     ",((float) accX) * aRes,((float) accY) * aRes, ((float) accZ) * aRes);
   M5.Lcd.setCursor(140, 30);
   M5.Lcd.print("*/s");
   M5.Lcd.setCursor(0, 40);
