@@ -143,11 +143,8 @@ void DecideGyroType(){
   USE_SERIAL.println("Resetting IMU");
   
   // Test for the SH200Q using a call to M5.IMU
-  //Wire1.end(); // Doesn't exist in the old version of Wire used
-  //pinMode(21, OUTPUT);
-  //pinMode(22, OUTPUT);
-  M5.IMU.sh200i_Reset();
-  M5.IMU.sh200i_ADCReset();
+  M5.SH200Q.sh200i_Reset(); // Support removed by the M5 IMU Libarary
+  M5.SH200Q.sh200i_ADCReset();
   M5.IMU.Init();
   M5.IMU.getAccelAdc(&accX,&accY,&accZ);
   USE_SERIAL.print("X: "); USE_SERIAL.print(accX); 
@@ -260,11 +257,11 @@ void HandleButtons(){
 
 void HandleSensors(){
   if (imuType == SH200Q){
-    M5.IMU.getGyroAdc(&gyroX,&gyroY,&gyroZ);
-    M5.IMU.getAccelAdc(&accX,&accY,&accZ);
-    M5.IMU.getTempAdc(&temp);
-    aRes = M5.IMU.aRes;
-    gRes = M5.IMU.gRes;
+    M5.SH200Q.getGyroAdc(&gyroX,&gyroY,&gyroZ);
+    M5.SH200Q.getAccelAdc(&accX,&accY,&accZ);
+    M5.SH200Q.getTempAdc(&temp);
+    aRes = M5.SH200Q.aRes;
+    gRes = M5.SH200Q.gRes;
   }
   else if (imuType == MPU6886){
     M5.MPU6886.getGyroAdc(&gyroX,&gyroY,&gyroZ);
@@ -318,13 +315,13 @@ void HandleDisplay(){
   }
   
   M5.Lcd.setCursor(0, 20);
-  M5.Lcd.printf("%.2f   %.2f   %.2f    ", ((float) gyroX) * gRes, ((float) gyroY) * gRes,((float) gyroZ) * gRes);
+  M5.Lcd.printf("%.1f   %.1f   %.1f    ", ((float) gyroX) * gRes, ((float) gyroY) * gRes,((float) gyroZ) * gRes);
   M5.Lcd.setCursor(144, 20);
-  M5.Lcd.print("mg");
+  M5.Lcd.print("*/s");
   M5.Lcd.setCursor(0, 30);
   M5.Lcd.printf("%.2f   %.2f   %.2f     ",((float) accX) * aRes,((float) accY) * aRes, ((float) accZ) * aRes);
   M5.Lcd.setCursor(140, 30);
-  M5.Lcd.print("*/s");
+  M5.Lcd.print("G");
   M5.Lcd.setCursor(0, 40);
   M5.Lcd.print("Analog: ");
   M5.Lcd.print((int)analogSensorValue);

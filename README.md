@@ -15,3 +15,13 @@ The M5 Stick C has three different buttons built-in. This project detects short 
   * Right secondary button:
     * Short: Toggle Turbo mode
     * Long:  Reset the IMU
+
+## Installation
+- [OSC](https://github.com/CNMAT/OSC) by Adrian Freed, Yotam Mann
+	- Available in the Arduino Library Manager
+- [ESP32 Board Libraries](https://docs.m5stack.com/#/en/arduino/arduino_development)
+	- Requires adding a URL to the Arduino Board Manager
+	- Follow the above referenced installation guide for the ESP32-based M5 Stick C
+- [M5StickC Libraries](https://github.com/m5stack/M5StickC)
+	- Adds support for features built into the M5StickC that are not standard to the ESP32
+	- Install by cloning the M5StickC repository to your Arduino `libraries` folder
