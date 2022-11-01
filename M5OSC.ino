@@ -50,15 +50,26 @@ enum imu_type {
 };
 
 imu_type imuType = unknown;
-int16_t accX, accY, accZ;
-int16_t gyroX, gyroY, gyroZ;
+
+float accX = 0.0F;
+float accY = 0.0F;
+float accZ = 0.0F;
+
+float gyroX = 0.0F;
+float gyroY = 0.0F;
+float gyroZ = 0.0F;
+
+float pitch = 0.0F;
+float roll  = 0.0F;
+float yaw   = 0.0F;
+
 double fXg, fYg, fZg;
 const float alpha = 0.5;
-double pitch, roll, Xg, Yg, Zg;
+double Xg, Yg, Zg;
 float gRes, aRes;
 
 int analogSensorValue;
-int16_t temp = 0;
+float temperatureC = 0;
 double vbat = 0.0;
 int discharge,charge;
 double bat_p = 0.0;
@@ -109,7 +120,7 @@ void WiFiEvent(WiFiEvent_t event){
 void setup() {
   
   M5.begin();
-  DecideGyroType();
+  M5.IMU.Init();
   pinMode(M5_LED, OUTPUT);
   digitalWrite(M5_LED, HIGH);
   pinMode(M5_BUTTON_HOME, INPUT);
@@ -128,46 +139,6 @@ void setup() {
   
   connectToWiFi(networkName, networkPswd);
 }
-
-
-void DecideGyroType(){
-  // The M5StickC can have different types of IMUs
-  // We need to detect which is installed and use it
-  // For this we will test the accellerometer to see if
-  // it reports all zeros. Since we are (probably) not in
-  // outer space, this should be a decent proxy.
-
-  imuType = unknown;
-  accX, accY, accZ = 0;
-  USE_SERIAL.println();
-  USE_SERIAL.println("Resetting IMU");
-  
-  // Test for the SH200Q using a call to M5.IMU
-  M5.SH200Q.sh200i_Reset(); // Support removed by the M5 IMU Libarary
-  M5.SH200Q.sh200i_ADCReset();
-  M5.IMU.Init();
-  M5.IMU.getAccelAdc(&accX,&accY,&accZ);
-  USE_SERIAL.print("X: "); USE_SERIAL.print(accX); 
-  USE_SERIAL.print(" Y: "); USE_SERIAL.print(accY); 
-  USE_SERIAL.print(" Z: "); USE_SERIAL.print(accZ); 
-  USE_SERIAL.println();
-  if ( !(abs(accX) == 0 && abs(accY) == 0 && abs(accZ) == 0) && accX != 16380){
-    // Because of the way the TwoWire library works, if the IMU is an MPU6886 the 
-    // byte that represents accX will return 16380, indicating it's not an SH200Q
-    imuType = SH200Q;
-    return;
-  }
-
-  // Test for the MPU6886 using a call to M5.MPU6886
-  
-  M5.MPU6886.Init();
-  M5.MPU6886.getAccelAdc(&accX,&accY,&accZ);
-  if ( !(abs(accX) == 0 && abs(accY) == 0 && abs(accZ) == 0)){
-    imuType = MPU6886;
-    return;
-  }
-}
-
 
 void HandleButtons(){
   // POWER BUTTON
@@ -204,8 +175,8 @@ void HandleButtons(){
       // Run action
       M5.Lcd.fillScreen(BLUE);
       M5.Lcd.setCursor(0, 0, 1);
-      M5.Lcd.printf("Reset IMU");
-      DecideGyroType();
+      M5.Lcd.printf("No function");
+      // Add function to call here
       delay(400);
       M5.Lcd.fillScreen(BLACK);
     }
@@ -256,20 +227,12 @@ void HandleButtons(){
 
 
 void HandleSensors(){
-  if (imuType == SH200Q){
-    M5.SH200Q.getGyroAdc(&gyroX,&gyroY,&gyroZ);
-    M5.SH200Q.getAccelAdc(&accX,&accY,&accZ);
-    M5.SH200Q.getTempAdc(&temp);
-    aRes = M5.SH200Q.aRes;
-    gRes = M5.SH200Q.gRes;
-  }
-  else if (imuType == MPU6886){
-    M5.MPU6886.getGyroAdc(&gyroX,&gyroY,&gyroZ);
-    M5.MPU6886.getAccelAdc(&accX,&accY,&accZ);
-    M5.MPU6886.getTempAdc(&temp);
-    aRes = M5.MPU6886.aRes;
-    gRes = M5.MPU6886.gRes;
-  }
+
+  M5.IMU.getGyroData(&gyroX, &gyroY, &gyroZ);
+  M5.IMU.getAccelData(&accX, &accY, &accZ);
+  M5.IMU.getAhrsData(&pitch, &roll, &yaw);
+  M5.IMU.getTempData(&temperatureC);
+  
   
   vbat = M5.Axp.GetVbatData() * 1.1 / 1000;
   isCharging    = M5.Axp.GetIchargeData() / 2;
@@ -303,23 +266,12 @@ void HandleDisplay(){
   
   M5.Lcd.setCursor(0, 10);
   M5.Lcd.println("  X       Y      Z");
-  M5.Lcd.setCursor(114, 10);
-  if (imuType == SH200Q){
-    M5.Lcd.print(" SH200Q");
-  }
-  else if (imuType == MPU6886){
-    M5.Lcd.print("MPU6886");
-  }
-  else {
-    M5.Lcd.print("UNKNOWN");
-  }
-  
   M5.Lcd.setCursor(0, 20);
-  M5.Lcd.printf("%.1f   %.1f   %.1f    ", ((float) gyroX) * gRes, ((float) gyroY) * gRes,((float) gyroZ) * gRes);
+  M5.Lcd.printf("%.1f   %.1f   %.1f    ", gyroX, gyroY,gyroZ);
   M5.Lcd.setCursor(144, 20);
   M5.Lcd.print("*/s");
   M5.Lcd.setCursor(0, 30);
-  M5.Lcd.printf("%.2f   %.2f   %.2f     ",((float) accX) * aRes,((float) accY) * aRes, ((float) accZ) * aRes);
+  M5.Lcd.printf("%.2f   %.2f   %.2f     ",accX,accY,accZ);
   M5.Lcd.setCursor(140, 30);
   M5.Lcd.print("G");
   M5.Lcd.setCursor(0, 40);
@@ -340,7 +292,7 @@ void HandleDisplay(){
     M5.Lcd.print(" External Power");
   }
   M5.Lcd.setCursor(0, 70);
-  M5.Lcd.printf("Temperature : %.2f C",((float) temp) / 333.87 + 21.0);
+  M5.Lcd.printf("Temperature : %.2f C",((float) temperatureC) / 333.87 + 21.0);
 }
 
 
